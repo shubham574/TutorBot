@@ -7,12 +7,16 @@ from app.config.logging_config import logger
 from app.models.student import Student
 from app.models.message_log import WhatsAppMessageLog
 from app.models.syllabus import SyllabusNode
+from app.models.study_plan import StudyPlan
 from app.services.whatsapp.client import whatsapp_client
 from app.services.syllabus.service import syllabus_service
 from app.rag.tutor import tutor_agent
 from app.services.quiz.service import quiz_service
 from app.services.exam.service import exam_service
 from app.services.grading.service import grading_service
+from app.services.planner.service import study_planner
+from app.services.progress.service import progress_service
+from app.services.nudges.dispatcher import nudge_dispatcher
 from app.services.whatsapp.schemas import OutgoingReplyButton
 
 
@@ -269,7 +273,121 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
             )
             outbound_results = [res]
 
-        # G) Basic System Commands
+        # G) Phase 6: Study Planner (/plan or tapping [Start Day 1])
+        elif (
+            interactive_button_id == "start_first_topic"
+            or normalized_text.lower() in ["/plan", "/schedule", "study plan"]
+        ):
+            logger.info("Generating or retrieving study plan", sender=sender_phone)
+            plan_stmt = (
+                select(StudyPlan)
+                .where(
+                    StudyPlan.student_id == student.id,
+                    StudyPlan.status == "active",
+                )
+                .order_by(StudyPlan.created_at.desc())
+                .limit(1)
+            )
+            plan_res = await session.execute(plan_stmt)
+            plan = plan_res.scalar_one_or_none()
+
+            if not plan:
+                plan = await study_planner.generate_study_plan(
+                    student_id=student.id,
+                    session=session,
+                )
+
+            body_text, buttons = study_planner.format_study_plan_for_whatsapp(plan)
+            res = await whatsapp_client.send_interactive_buttons(
+                recipient_phone=sender_phone,
+                body_text=body_text,
+                buttons=buttons,
+            )
+            outbound_results = [res]
+
+        # H) Phase 6: Student Progress Dashboard (/progress)
+        elif (
+            interactive_button_id == "view_progress"
+            or normalized_text.lower() in ["/progress", "my progress", "dashboard"]
+        ):
+            logger.info("Generating student progress dashboard", sender=sender_phone)
+            body_text, buttons = await progress_service.generate_progress_report(
+                student_id=student.id,
+                session=session,
+            )
+            res = await whatsapp_client.send_interactive_buttons(
+                recipient_phone=sender_phone,
+                body_text=body_text,
+                buttons=buttons,
+            )
+            outbound_results = [res]
+
+        # I) Phase 6: Proactive Nudge Opt-out (/opt-out or /stop)
+        elif normalized_text.lower() in ["/opt-out", "/stop", "opt out", "unsubscribe"]:
+            logger.info("Student opting out of proactive nudges", sender=sender_phone)
+            student.is_active = False
+            await session.commit()
+            reply_text = (
+                "⏸️ *Proactive Nudges Paused*\n\n"
+                "You have been unsubscribed from proactive revision reminders and study alerts.\n\n"
+                "You can still ask questions, take quizzes, and generate exam papers anytime. "
+                "To resume proactive reminders later, simply send '/opt-in'."
+            )
+            outbound_results = await whatsapp_client.send_text_message(
+                recipient_phone=sender_phone,
+                text=reply_text,
+            )
+
+        # J) Phase 6: Proactive Nudge Opt-in (/opt-in)
+        elif normalized_text.lower() in ["/opt-in", "/start", "opt in", "subscribe"]:
+            logger.info("Student opting in to proactive nudges", sender=sender_phone)
+            student.is_active = True
+            await session.commit()
+            reply_text = (
+                "▶️ *Proactive Nudges Activated!*\n\n"
+                "Welcome back! You will now receive timely, spaced-repetition revision alerts "
+                "tailored to your syllabus, strictly scheduled outside your quiet hours."
+            )
+            outbound_results = await whatsapp_client.send_text_message(
+                recipient_phone=sender_phone,
+                text=reply_text,
+            )
+
+        # K) Phase 6: Voice Notes Handling
+        elif message_type in ["audio", "voice"]:
+            logger.info("Voice note message received", sender=sender_phone)
+            if normalized_text:
+                # If voice note was already transcribed upstream
+                answer_text, buttons, mode = await tutor_agent.answer_question(
+                    question=normalized_text,
+                    student_id=student.id,
+                    session=session,
+                )
+                res = await whatsapp_client.send_interactive_buttons(
+                    recipient_phone=sender_phone,
+                    body_text=f"🎙️ *Voice Note Question:*\n_{normalized_text}_\n\n{answer_text}",
+                    buttons=buttons,
+                )
+                outbound_results = [res]
+            else:
+                voice_reply = (
+                    "🎙️ *Voice Note Received!*\n\n"
+                    "I received your audio query. You can ask me questions by voice note or text "
+                    "to get instant explanations grounded in your curriculum.\n\n"
+                    "How can I help you right now?"
+                )
+                voice_buttons = [
+                    OutgoingReplyButton(id="start_first_topic", title="📅 Study Plan"),
+                    OutgoingReplyButton(id="quiz_this_topic", title="⚡ Quick Quiz"),
+                ]
+                res = await whatsapp_client.send_interactive_buttons(
+                    recipient_phone=sender_phone,
+                    body_text=voice_reply,
+                    buttons=voice_buttons,
+                )
+                outbound_results = [res]
+
+        # L) Basic System Commands
         elif normalized_text == "/ping":
             outbound_results = await whatsapp_client.send_text_message(
                 recipient_phone=sender_phone,
@@ -278,13 +396,16 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
         elif normalized_text == "/help":
             help_text = (
                 "👋 Hello! I am *TutorBot*, your personal AI tutor.\n\n"
-                "*Available Features:*\n"
+                "*Curriculum & Study Commands:*\n"
                 "• 📚 *Syllabus Ingestion*: Upload your syllabus PDF, photo, or text.\n"
-                "• 💡 *Ask Questions*: Ask me to explain any topic.\n"
-                "• 📝 *Interactive Quizzes*: Type '/quiz' to test understanding.\n"
-                "• 📄 *Exam Papers*: Type '/exam' to generate printable practice papers.\n"
-                "• 📊 *Grading*: Type '/grade [answer]' or upload handwritten work for rubric feedback.\n"
-                "• 📈 *FSRS Mastery*: Tracks memory retention automatically.\n"
+                "• 📅 */plan*: View your personalized study schedule & timeline.\n"
+                "• 📊 */progress*: Check your syllabus mastery and quiz accuracy.\n"
+                "• 💡 *Ask Questions*: Ask me to explain any topic (text or voice note).\n"
+                "• 📝 */quiz*: Take an interactive practice quiz.\n"
+                "• 📄 */exam*: Generate printable examination question papers.\n"
+                "• ✍️ */grade [answer]*: Receive instant 3-step rubric evaluation.\n"
+                "• ⏸️ */opt-out*: Pause proactive spaced-repetition nudges.\n"
+                "• ▶️ */opt-in*: Resume proactive spaced-repetition nudges.\n"
                 "• 🏓 */ping*: Check system status."
             )
             outbound_results = await whatsapp_client.send_text_message(
@@ -330,3 +451,14 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
 
         logger.info("Finished processing WhatsApp message", wamid=wamid, sender=sender_phone)
         return {"status": "success", "wamid": wamid}
+
+
+async def dispatch_scheduled_nudges(ctx: Dict[Any, Any] = None) -> int:
+    """
+    Periodic background job to scan and dispatch spaced repetition revision nudges.
+    Called on a cron schedule by the ARQ worker.
+    """
+    async with async_session_factory() as session:
+        count = await nudge_dispatcher.dispatch_due_nudges(session=session)
+        logger.info("Executed periodic spaced repetition nudge dispatch", count=count)
+        return count

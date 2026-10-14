@@ -6,6 +6,7 @@ from app.models.syllabus import SyllabusNode
 from app.models.content import ContentChunk
 from app.models.quiz import QuestionBank, Attempt
 from app.models.mastery import TopicMastery
+from app.models.study_plan import StudyPlan
 
 __all__ = [
     "Base",
@@ -16,4 +17,5 @@ __all__ = [
     "QuestionBank",
     "Attempt",
     "TopicMastery",
+    "StudyPlan",
 ]

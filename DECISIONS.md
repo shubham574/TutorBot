@@ -86,3 +86,22 @@ This document tracks all significant architectural and engineering decisions for
 - **Consequences**:
   - Safer environment for students.
   - Compliance readiness for privacy audits.
+
+---
+
+## ADR 006: Proactive Nudge Compliance, Quiet Hours, and Meta 24-Hour WhatsApp Policy
+- **Date**: 2026-10-15
+- **Status**: Accepted
+- **Context**:
+  Proactive notifications (daily study goals, FSRS spaced-repetition revision prompts) must never disturb students during rest hours, spam them, or violate Meta's WhatsApp Business Messaging Policy.
+- **Decision**:
+  - **Adaptive Study Planner**: Distributes syllabus topics across available study days up to the target exam, automatically reserving the final 15% of the timeline as a consolidation and practice exam buffer.
+  - **Deterministic Compliance Service**: Before dispatching any proactive notification, the bot enforces 4 strict gates:
+    1. **Consent & Opt-Out**: Verified `student.is_active == True` (honoring student `/opt-out` and `/opt-in` commands).
+    2. **Timezone Quiet Hours**: Verified outside `22:00` to `07:00` student local time using IANA timezones (`ZoneInfo` backed by `tzdata`).
+    3. **Daily Frequency Cap**: Enforced maximum 1 proactive nudge per student per calendar day tracked via outbound message logs.
+    4. **Meta 24-Hour Session Window**: If within 24 hours of student's last message, send rich interactive buttons; if outside 24 hours, fall back to approved business notification templates.
+  - **Academic Progress Dashboard**: Computes real-time syllabus coverage, mastered topics (score >= 0.70), and quiz accuracy with Unicode progress bars (`[████████░░░░] 67%`).
+- **Consequences**:
+  - Deterministic safety against student fatigue and notification spam.
+  - Zero account ban risk from Meta policy violations.
