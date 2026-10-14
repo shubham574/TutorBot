@@ -83,7 +83,7 @@ arq app.workers.arq_worker.WorkerSettings
 ## 📋 Roadmap & Phases
 - [x] **Phase 1: Webhook + Queue + Echo Bot** (Signature verification, Redis & DB deduplication, ARQ worker, DRY_RUN mode, 28 tests passing).
 - [x] **Phase 2: Syllabus Ingestion** (Parse PDF/image OCR -> LLM-extract structured topic tree in `syllabus_nodes`, WhatsApp interactive outline confirmation, 38 tests passing).
-- [ ] **Phase 3: Content Ingestion + RAG Tutor** (Structure-aware chunking, hybrid search, citations, 3 answer modes).
+- [x] **Phase 3: Content Ingestion + RAG Tutor** (Structure-aware chunking, hybrid search, citations, 3 answer modes: Grounded, General Knowledge, Decline/Clarify, 51 tests passing).
 - [ ] **Phase 4: Quiz Agent** (Interactive WhatsApp reply buttons, MCQ verifier, FSRS mastery updates).
 - [ ] **Phase 5: Sample Papers & Grading** (Exam blueprints, PDF export, handwritten vision grading, SymPy math solver).
 - [ ] **Phase 6: Proactive Planner & Voice** (FSRS spaced-repetition nudges, quiet hours, audio notes, progress tracking).

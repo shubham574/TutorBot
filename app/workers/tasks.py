@@ -7,6 +7,7 @@ from app.models.student import Student
 from app.models.message_log import WhatsAppMessageLog
 from app.services.whatsapp.client import whatsapp_client
 from app.services.syllabus.service import syllabus_service
+from app.rag.tutor import tutor_agent
 
 
 async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -152,21 +153,30 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
                 "👋 Hello! I am *TutorBot*, your personal AI tutor.\n\n"
                 "*Available Features:*\n"
                 "• 📚 *Syllabus Ingestion*: Upload your syllabus PDF, photo, or text.\n"
+                "• 💡 *Ask Questions*: Ask me to explain any topic (e.g. 'Explain Total Internal Reflection').\n"
+                "• 📖 *Citations & Grounding*: Answers from your material include exact page numbers.\n"
                 "• 🏓 */ping*: Check system status.\n"
-                "• ❓ */help*: View this guide.\n\n"
-                "Upload your syllabus to start learning!"
+                "• ❓ */help*: View this guide."
             )
             outbound_results = await whatsapp_client.send_text_message(
                 recipient_phone=sender_phone,
                 text=help_text,
             )
 
-        # D) Default Echo (until Phase 3 RAG Tutor)
+        # D) Phase 3: RAG Tutor Agent (Grounded, General Knowledge, Decline/Clarify)
         else:
-            outbound_results = await whatsapp_client.send_text_message(
-                recipient_phone=sender_phone,
-                text=f"Echo from TutorBot:\n\n{text_content}",
+            logger.info("Routing query to Tutor Agent", query=text_content[:60], sender=sender_phone)
+            answer_text, buttons, mode = await tutor_agent.answer_question(
+                question=text_content,
+                student_id=student.id,
+                session=session,
             )
+            res = await whatsapp_client.send_interactive_buttons(
+                recipient_phone=sender_phone,
+                body_text=answer_text,
+                buttons=buttons,
+            )
+            outbound_results = [res]
 
         # 5. Log outbound messages & mark inbound as PROCESSED
         for res in outbound_results:
