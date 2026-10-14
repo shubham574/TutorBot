@@ -27,6 +27,8 @@ openai>=1.14.0
 pypdf>=4.0.0
 pillow>=10.0.0
 langgraph>=0.0.30
+reportlab>=4.0.0
+sympy>=1.12.0
 
 # Testing
 pytest>=8.0.0

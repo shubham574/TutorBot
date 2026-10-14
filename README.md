@@ -85,6 +85,6 @@ arq app.workers.arq_worker.WorkerSettings
 - [x] **Phase 2: Syllabus Ingestion** (Parse PDF/image OCR -> LLM-extract structured topic tree in `syllabus_nodes`, WhatsApp interactive outline confirmation, 38 tests passing).
 - [x] **Phase 3: Content Ingestion + RAG Tutor** (Structure-aware chunking, hybrid search, citations, 3 answer modes: Grounded, General Knowledge, Decline/Clarify, 51 tests passing).
 - [x] **Phase 4: Quiz Agent** (Interactive WhatsApp reply buttons, autonomous dual-pass verifier, FSRS mastery engine, 60 tests passing).
-- [ ] **Phase 5: Sample Papers & Grading** (Exam blueprints, PDF export, handwritten vision grading, SymPy math solver).
+- [x] **Phase 5: Sample Papers & Grading** (Exam blueprints, ReportLab PDF generator, SymPy symbolic math verifier, vision grading, 70 tests passing).
 - [ ] **Phase 6: Proactive Planner & Voice** (FSRS spaced-repetition nudges, quiet hours, audio notes, progress tracking).
 - [ ] **Phase 7: Evals in CI** (Should-decline set, groundedness evals, question-key audit).

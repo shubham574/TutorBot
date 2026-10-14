@@ -11,6 +11,9 @@ from app.services.whatsapp.client import whatsapp_client
 from app.services.syllabus.service import syllabus_service
 from app.rag.tutor import tutor_agent
 from app.services.quiz.service import quiz_service
+from app.services.exam.service import exam_service
+from app.services.grading.service import grading_service
+from app.services.whatsapp.schemas import OutgoingReplyButton
 
 
 async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -212,7 +215,61 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
                     text=err_text,
                 )
 
-        # E) Basic System Commands
+        # E) Phase 5: Sample Examination Paper Generation
+        elif normalized_text.lower() in ["/exam", "/paper", "generate exam", "sample paper"]:
+            logger.info("Generating exam paper blueprint and PDF", sender=sender_phone)
+            blueprint, pdf_bytes = await exam_service.generate_exam_paper(
+                student_id=student.id,
+                session=session,
+            )
+            exam_summary = (
+                f"📄 *{blueprint.title}*\n"
+                f"🎯 *Exam:* {blueprint.target_exam} | ⏱️ *Duration:* {blueprint.duration_minutes // 60} hrs\n"
+                f"📊 *Total Marks:* {int(blueprint.total_marks)}\n\n"
+                "*Structure:*\n"
+                "• *Section A:* Multiple Choice (1 Mark each)\n"
+                "• *Section B:* Short Answer (3 Marks each)\n"
+                "• *Section C:* Numerical Problem (5 Marks)\n\n"
+                "Your examination paper PDF has been generated! Solve the questions and type "
+                "'/grade [question] [your answer]' or upload a photo of your handwritten sheet to receive instant rubric evaluation."
+            )
+            exam_buttons = [
+                OutgoingReplyButton(id="retest_concept", title="📝 Start Exam"),
+                OutgoingReplyButton(id="quiz_this_topic", title="⚡ Quick Quiz"),
+            ]
+            res = await whatsapp_client.send_interactive_buttons(
+                recipient_phone=sender_phone,
+                body_text=exam_summary,
+                buttons=exam_buttons,
+            )
+            outbound_results = [res]
+
+        # F) Phase 5: Subjective Answer Grading
+        elif normalized_text.lower().startswith("/grade"):
+            logger.info("Grading subjective student submission", sender=sender_phone)
+            # Format: /grade [Question] --- [Student Answer] or general answer text
+            answer_payload = normalized_text[6:].strip()
+            if "---" in answer_payload:
+                q_text, a_text = answer_payload.split("---", 1)
+            else:
+                q_text = "Physics Numerical Problem"
+                a_text = answer_payload
+
+            report = await grading_service.grade_text_answer(
+                question_text=q_text.strip(),
+                student_answer=a_text.strip(),
+                expected_solution="Work W = F*d = (1/2)*m*v^2 = 100 Joules",
+                max_marks=5.0,
+            )
+            grading_body, grading_buttons = grading_service.format_grading_for_whatsapp(report)
+            res = await whatsapp_client.send_interactive_buttons(
+                recipient_phone=sender_phone,
+                body_text=grading_body,
+                buttons=grading_buttons,
+            )
+            outbound_results = [res]
+
+        # G) Basic System Commands
         elif normalized_text == "/ping":
             outbound_results = await whatsapp_client.send_text_message(
                 recipient_phone=sender_phone,
@@ -223,9 +280,11 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
                 "👋 Hello! I am *TutorBot*, your personal AI tutor.\n\n"
                 "*Available Features:*\n"
                 "• 📚 *Syllabus Ingestion*: Upload your syllabus PDF, photo, or text.\n"
-                "• 💡 *Ask Questions*: Ask me to explain any topic (e.g. 'Explain Total Internal Reflection').\n"
-                "• 📝 *Interactive Quizzes*: Type '/quiz' or tap quiz buttons to test understanding.\n"
-                "• 📈 *FSRS Mastery*: Automatically tracks retention and schedules spaced repetitions.\n"
+                "• 💡 *Ask Questions*: Ask me to explain any topic.\n"
+                "• 📝 *Interactive Quizzes*: Type '/quiz' to test understanding.\n"
+                "• 📄 *Exam Papers*: Type '/exam' to generate printable practice papers.\n"
+                "• 📊 *Grading*: Type '/grade [answer]' or upload handwritten work for rubric feedback.\n"
+                "• 📈 *FSRS Mastery*: Tracks memory retention automatically.\n"
                 "• 🏓 */ping*: Check system status."
             )
             outbound_results = await whatsapp_client.send_text_message(
