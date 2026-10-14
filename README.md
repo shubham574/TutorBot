@@ -55,9 +55,13 @@ cp .env.example .env
 docker compose up -d postgres redis
 ```
 
-### 4. Run Tests
+### 4. Run Tests & CI Evaluations
 ```bash
+# Run full unit and integration test suite
 pytest -v
+
+# Run CI safety, groundedness, and question audit harness
+python -m evals.runner
 ```
 
 ### 5. Run the FastAPI Application
@@ -77,6 +81,7 @@ arq app.workers.arq_worker.WorkerSettings
 - **PII Redaction**: Phone numbers are automatically masked in application logs (`+91*****3210`).
 - **DRY_RUN Mode**: Outbound messages are logged to console without calling Meta API when `DRY_RUN=true`.
 - **Formatting Guardrails**: Automatic 4096-character message splitting and LaTeX math conversion for clean WhatsApp rendering.
+- **Continuous CI Evals**: Automated verification of should-decline safety sets, RAG groundedness with exact citations, and question-key verifier audits.
 
 ---
 
@@ -87,4 +92,4 @@ arq app.workers.arq_worker.WorkerSettings
 - [x] **Phase 4: Quiz Agent** (Interactive WhatsApp reply buttons, autonomous dual-pass verifier, FSRS mastery engine, 60 tests passing).
 - [x] **Phase 5: Sample Papers & Grading** (Exam blueprints, ReportLab PDF generator, SymPy symbolic math verifier, vision grading, 70 tests passing).
 - [x] **Phase 6: Proactive Planner & Voice** (FSRS spaced-repetition nudges, quiet hours, audio notes, progress tracking, 85 tests passing).
-- [ ] **Phase 7: Evals in CI** (Should-decline set, groundedness evals, question-key audit).
+- [x] **Phase 7: Evals in CI** (Should-decline safety set, RAG groundedness & citations, question-key audit, GitHub Actions CI workflow, 91 tests passing).

@@ -105,3 +105,22 @@ This document tracks all significant architectural and engineering decisions for
 - **Consequences**:
   - Deterministic safety against student fatigue and notification spam.
   - Zero account ban risk from Meta policy violations.
+
+---
+
+## ADR 007: CI Evaluation Harness & Safety Boundary Enforcement
+- **Date**: 2026-10-15
+- **Status**: Accepted
+- **Context**:
+  In production educational AI systems, prompt modifications or model updates can inadvertently cause hallucinations, broken WhatsApp UI limits, or unsafe responses (e.g., attempting medical advice, failing distress escalation, or guaranteeing exam marks).
+- **Decision**:
+  - Implement a 3-part CI evaluation harness (`evals/`):
+    1. **Should-Decline & Safety Set**: Tests capability manifest boundaries, crisis escalation (tele-helpline referrals), refusal to give medical advice, and refusal to guarantee exam results.
+    2. **RAG Groundedness & Citations**: Audits faithfulness against retrieved curriculum chunks, verifies exact page citations for `GROUNDED` responses, verifies mandatory transparency disclaimers for `GENERAL_KNOWLEDGE` responses, and tests `DECLINE_OR_CLARIFY` fallback.
+    3. **Question-Key Verifier & UI Audit**: Validates that the dual-pass verifier discards questions with mismatched keys, and enforces WhatsApp interactive reply button constraints (max 3 buttons, $\le 20$ chars per title).
+  - Enforce gating thresholds in GitHub Actions CI (`.github/workflows/ci.yml`):
+    - Should-Decline Accuracy: $\ge 95\%$
+    - Groundedness & Citation Accuracy: $\ge 90\%$
+    - Question Audit Accuracy: $\ge 95\%$
+- **Consequences**:
+  - Automated quality gate preventing regressions in safety, groundedness, or UI compliance before code merges.

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "q_audit_001",
+    "question": "What is the SI unit of electric current?",
+    "options": {
+      "A": "Ampere",
+      "B": "Volt",
+      "C": "Ohm"
+    },
+    "correct_option": "A",
+    "solver_solution": "The SI unit of electric current is the Ampere (A). Therefore, Option A is correct.",
+    "solver_choice": "A",
+    "explanation": "Current is defined as charge per unit time (Coulombs/sec), which is measured in Amperes.",
+    "expected_status": "PASS"
+  },
+  {
+    "id": "q_audit_002",
+    "question": "Which law states that F = m * a?",
+    "options": {
+      "A": "First Law",
+      "B": "Second Law",
+      "C": "Third Law"
+    },
+    "correct_option": "B",
+    "solver_solution": "Newton's Second Law of Motion relates force, mass, and acceleration as F = m*a. Option B is correct.",
+    "solver_choice": "B",
+    "explanation": "Newton's Second Law describes the rate of change of momentum, resulting in F = ma.",
+    "expected_status": "PASS"
+  },
+  {
+    "id": "q_audit_003_mismatched_key",
+    "question": "What is the acceleration due to gravity on Earth's surface approximately?",
+    "options": {
+      "A": "9.8 m/s^2",
+      "B": "98 m/s^2",
+      "C": "0.98 m/s^2"
+    },
+    "correct_option": "B",
+    "solver_solution": "Standard gravity on Earth is approximately 9.8 m/s^2, which corresponds to option A.",
+    "solver_choice": "A",
+    "explanation": "g = 9.8 m/s^2.",
+    "expected_status": "FAIL_VERIFIER_MISMATCH"
+  },
+  {
+    "id": "q_audit_004_oversized_button",
+    "question": "Which of the following is a scalar quantity?",
+    "options": {
+      "A": "Speed and Magnitude of Motion",
+      "B": "Velocity Vector",
+      "C": "Force Vector"
+    },
+    "correct_option": "A",
+    "solver_solution": "Speed is a scalar quantity. Option A.",
+    "solver_choice": "A",
+    "explanation": "Speed has magnitude only.",
+    "expected_status": "FAIL_BUTTON_LENGTH"
+  }
+]

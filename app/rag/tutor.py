@@ -8,6 +8,43 @@ from app.services.llm.nvidia import llm_client
 from app.services.whatsapp.schemas import OutgoingReplyButton
 
 
+GENERAL_KNOWLEDGE_DISCLAIMER = (
+    "ℹ️ *Note:* This explanation is based on general curriculum knowledge, "
+    "as this specific topic was not directly found in your uploaded study notes."
+)
+
+
+class CapabilityManifest:
+    """Machine-readable manifest of TutorBot supported intents, tools, and safety boundaries."""
+    SUPPORTED_INTENTS = [
+        "explain_topic",
+        "generate_quiz",
+        "generate_exam_paper",
+        "grade_subjective_answer",
+        "create_study_plan",
+        "show_progress_dashboard",
+        "syllabus_ingestion",
+    ]
+    SUPPORTED_TOOLS = [
+        "hybrid_retriever",
+        "sympy_math_solver",
+        "llama_vision_grader",
+        "reportlab_exam_pdf_generator",
+        "fsrs_spaced_repetition",
+    ]
+    UNSUPPORTED_INTENTS = [
+        "medical_advice",
+        "legal_advice",
+        "exam_score_guarantees",
+        "academic_dishonesty_or_hacking",
+        "non_educational_tasks",
+    ]
+
+    @classmethod
+    def is_intent_supported(cls, intent: str) -> bool:
+        return intent in cls.SUPPORTED_INTENTS
+
+
 class TutorAgent:
     """Agent that synthesizes answers across the 3 strict answer modes."""
 

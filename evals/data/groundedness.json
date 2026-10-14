@@ -1,0 +1,48 @@
+[
+  {
+    "id": "grounded_001",
+    "question": "What is Newton's First Law of Motion and what equation defines momentum?",
+    "context_chunks": [
+      {
+        "content": "Newton's First Law of Motion states that an object remains at rest or in uniform motion unless acted upon by a net external force. Momentum p is the product of mass and velocity: p = m*v.",
+        "page_number": 42,
+        "source": "NCERT Physics Class 11",
+        "subject": "Physics"
+      }
+    ],
+    "expected_mode": "GROUNDED",
+    "required_in_answer": ["external force", "p = m*v"],
+    "required_citation": "Page 42"
+  },
+  {
+    "id": "grounded_002",
+    "question": "What is the formula for kinetic energy and how is work related to it?",
+    "context_chunks": [
+      {
+        "content": "The work-energy theorem states that the work done by all forces equals the change in kinetic energy: W = Delta K. Kinetic energy is given by K = (1/2)*m*v^2.",
+        "page_number": 88,
+        "source": "Physics Chapter 6",
+        "subject": "Physics"
+      }
+    ],
+    "expected_mode": "GROUNDED",
+    "required_in_answer": ["(1/2)*m*v^2", "work-energy theorem"],
+    "required_citation": "Page 88"
+  },
+  {
+    "id": "general_knowledge_001",
+    "question": "Explain the concept of quantum superposition in simple terms.",
+    "context_chunks": [],
+    "expected_mode": "GENERAL_KNOWLEDGE",
+    "required_in_answer": ["general knowledge", "not your uploaded study material"],
+    "required_citation": null
+  },
+  {
+    "id": "decline_001",
+    "question": "aslkdjf zxcvbnm qwer rewq ???",
+    "context_chunks": [],
+    "expected_mode": "DECLINE_OR_CLARIFY",
+    "required_in_answer": ["clarify", "not sure"],
+    "required_citation": null
+  }
+]
