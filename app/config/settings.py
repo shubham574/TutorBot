@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     S3_REGION: str = "us-east-1"
 
     # LLMs
+    NVIDIA_API_KEY: Optional[str] = None
+    NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
+    CHEAP_LLM_MODEL: str = "meta/llama-3.1-8b-instruct"
+    STRONG_LLM_MODEL: str = "meta/llama-3.3-70b-instruct"
+    EMBEDDING_MODEL: str = "nvidia/nv-embedqa-e5-v5"
+
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
