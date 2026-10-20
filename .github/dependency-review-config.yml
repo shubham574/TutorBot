@@ -1,0 +1,35 @@
+# Dependency Review Configuration
+# See: https://github.com/actions/dependency-review-action
+
+# Fail on vulnerabilities with these severities
+fail-on-severity: high
+
+# Allow these licenses (SPDX identifiers)
+allow-licenses:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+  - Python-2.0
+  - PSF-2.0
+  - Unicode-DFS-2016
+
+# Deny these licenses
+deny-licenses:
+  - GPL-2.0
+  - GPL-3.0
+  - AGPL-3.0
+  - LGPL-2.1
+  - LGPL-3.0
+
+# Deny these scopes
+deny-scopes:
+  - runtime
+  - build
+
+# Allow these vulnerable packages (with justification)
+allow-vulnerabilities:
+  # Example: allow a specific vulnerability with justification
+  # - id: GHSA-xxxx-xxxx-xxxx
+  #   reason: "False positive, not applicable to our usage"

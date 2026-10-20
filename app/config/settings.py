@@ -29,17 +29,21 @@ class Settings(BaseSettings):
     # Operational Modes
     DRY_RUN: bool = True
 
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://tutorbot:tutorbot_secret@localhost:5432/tutorbot_db"
-    SYNC_DATABASE_URL: str = "postgresql://tutorbot:tutorbot_secret@localhost:5432/tutorbot_db"
+    # Database (PostgreSQL + pgvector) - Individual components for docker-compose
+    POSTGRES_USER: str = "tutorbot"
+    POSTGRES_PASSWORD: str = "changeme_secure_postgres_password"
+    POSTGRES_DB: str = "tutorbot_db"
+    DATABASE_URL: str = "postgresql+asyncpg://tutorbot:changeme_secure_postgres_password@localhost:5432/tutorbot_db"
+    SYNC_DATABASE_URL: str = "postgresql://tutorbot:changeme_secure_postgres_password@localhost:5432/tutorbot_db"
 
     # Redis / Queue
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_PASSWORD: str = "changeme_secure_redis_password"
+    REDIS_URL: str = "redis://:changeme_secure_redis_password@localhost:6379/0"
 
     # Storage (S3 / MinIO)
     S3_ENDPOINT_URL: str = "http://localhost:9000"
     S3_ACCESS_KEY: str = "minioadmin"
-    S3_SECRET_KEY: str = "minioadmin"
+    S3_SECRET_KEY: str = "changeme_secure_minio_password"
     S3_BUCKET_NAME: str = "tutorbot-documents"
     S3_REGION: str = "us-east-1"
 
@@ -60,6 +64,10 @@ class Settings(BaseSettings):
     LANGFUSE_SECRET_KEY: Optional[str] = None
     LANGFUSE_HOST: str = "https://cloud.langfuse.com"
     LANGFUSE_ENABLED: bool = False
+
+    # Data Retention
+    RETENTION_INACTIVE_DAYS: int = 365
+    RETENTION_WARNING_DAYS: int = 30
 
     @property
     def whatsapp_api_base_url(self) -> str:

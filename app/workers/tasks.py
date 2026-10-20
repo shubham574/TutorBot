@@ -17,6 +17,8 @@ from app.services.grading.service import grading_service
 from app.services.planner.service import study_planner
 from app.services.progress.service import progress_service
 from app.services.nudges.dispatcher import nudge_dispatcher
+from app.services.deletion import data_deletion_service
+from app.services.retention import data_retention_service
 from app.services.whatsapp.schemas import OutgoingReplyButton
 
 
@@ -353,7 +355,45 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
                 text=reply_text,
             )
 
-        # K) Phase 6: Voice Notes Handling
+        # K) Data Deletion Command (/delete my data)
+        elif normalized_text.lower() in ["/delete my data", "delete my data"]:
+            logger.info("Student requested data deletion", sender=sender_phone, student_id=str(student.id))
+            # Perform comprehensive data deletion
+            deletion_summary = await data_deletion_service.delete_student_data(
+                student_id=student.id,
+                session=session,
+            )
+            # Verify deletion
+            verified = await data_deletion_service.verify_deletion_complete(
+                student_id=student.id,
+                session=session,
+            )
+            if verified:
+                reply_text = (
+                    "🗑️ *Your Data Has Been Permanently Deleted*\n\n"
+                    "All your personal data has been removed from our systems:\n"
+                    f"• Syllabus nodes: {deletion_summary.get('syllabus_nodes_deleted', 0)}\n"
+                    f"• Private content chunks: {deletion_summary.get('content_chunks_private_deleted', 0)}\n"
+                    f"• Mastery records: {deletion_summary.get('mastery_records_deleted', 0)}\n"
+                    f"• Quiz attempts: {deletion_summary.get('attempts_deleted', 0)}\n"
+                    f"• Study plans: {deletion_summary.get('study_plans_deleted', 0)}\n"
+                    f"• Message logs: {deletion_summary.get('message_logs_deleted', 0)}\n"
+                    f"• Uploaded files: {deletion_summary.get('minio_files_deleted', 0)}\n\n"
+                    "Your account has been deleted. If you wish to use TutorBot again, "
+                    "simply send a new message to start fresh."
+                )
+            else:
+                reply_text = (
+                    "⚠️ *Data Deletion Incomplete*\n\n"
+                    "We attempted to delete your data but some records may remain. "
+                    "Please contact support for manual assistance."
+                )
+            outbound_results = await whatsapp_client.send_text_message(
+                recipient_phone=sender_phone,
+                text=reply_text,
+            )
+
+        # L) Phase 6: Voice Notes Handling
         elif message_type in ["audio", "voice"]:
             logger.info("Voice note message received", sender=sender_phone)
             if normalized_text:
@@ -387,7 +427,7 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
                 )
                 outbound_results = [res]
 
-        # L) Basic System Commands
+        # M) Basic System Commands
         elif normalized_text == "/ping":
             outbound_results = await whatsapp_client.send_text_message(
                 recipient_phone=sender_phone,
@@ -406,6 +446,7 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
                 "• ✍️ */grade [answer]*: Receive instant 3-step rubric evaluation.\n"
                 "• ⏸️ */opt-out*: Pause proactive spaced-repetition nudges.\n"
                 "• ▶️ */opt-in*: Resume proactive spaced-repetition nudges.\n"
+                "• 🗑️ */delete my data*: Permanently delete all your data.\n"
                 "• 🏓 */ping*: Check system status."
             )
             outbound_results = await whatsapp_client.send_text_message(
@@ -413,7 +454,7 @@ async def process_whatsapp_message(ctx: Dict[Any, Any], message_data: Dict[str, 
                 text=help_text,
             )
 
-        # F) RAG Tutor Agent (Grounded, General Knowledge, Decline/Clarify)
+        # N) RAG Tutor Agent (Grounded, General Knowledge, Decline/Clarify)
         else:
             logger.info("Routing query to Tutor Agent", query=text_content[:60], sender=sender_phone)
             answer_text, buttons, mode = await tutor_agent.answer_question(
@@ -462,3 +503,15 @@ async def dispatch_scheduled_nudges(ctx: Dict[Any, Any] = None) -> int:
         count = await nudge_dispatcher.dispatch_due_nudges(session=session)
         logger.info("Executed periodic spaced repetition nudge dispatch", count=count)
         return count
+
+
+async def run_data_retention_job(ctx: Dict[Any, Any] = None) -> dict:
+    """
+    Periodic background job to run data retention policies.
+    Sends warnings to inactive students and purges data past retention period.
+    Runs daily by default.
+    """
+    async with async_session_factory() as session:
+        result = await data_retention_service.run_retention_job(session=session)
+        logger.info("Executed data retention job", **result)
+        return result

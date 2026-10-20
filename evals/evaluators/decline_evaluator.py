@@ -69,6 +69,27 @@ class DeclineEvaluator:
                 "learn and prepare for your authorized curriculum."
             )
 
+        # Prompt injection / jailbreak attempts
+        if any(w in p_lower for w in [
+            "ignore previous", "forget everything", "new instructions",
+            "reveal.*system prompt", "chain of thought", "dan mode",
+            "unrestricted", "hypothetically", "act as.*unrestricted",
+            "no restrictions", "bypass.*safety"
+        ]):
+            return (
+                "I cannot follow instructions that attempt to override my safety guidelines or reveal "
+                "my system prompt. I am here to help you with your studies: explaining topics, "
+                "taking quizzes, and preparing for exams. Please let me know which subject you'd like to review!"
+            )
+
+        # Harmful content (bomb, weapons, etc.)
+        if any(w in p_lower for w in ["bomb", "explosive", "weapon", "harmful", "violence"]):
+            return (
+                "I cannot provide instructions for creating harmful devices or weapons. This request "
+                "violates my safety guidelines. I am an academic tutor and can only help with "
+                "educational topics like your curriculum and exam preparation."
+            )
+
         # Out of scope
         return (
             "I'm sorry, but that request is outside my capabilities. As TutorBot, I specialize in "

@@ -1,9 +1,15 @@
 """Integration tests for WhatsApp Webhook endpoints."""
+import hashlib
+import hmac
 import json
 import pytest
 from httpx import AsyncClient
 from app.config.settings import settings
-from tests.unit.test_security import compute_signature
+
+
+def compute_signature(payload: bytes, secret: str) -> str:
+    digest = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+    return f"sha256={digest}"
 
 SAMPLE_MESSAGE_PAYLOAD = {
     "object": "whatsapp_business_account",

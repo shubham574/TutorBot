@@ -3,7 +3,7 @@ import asyncio
 import os
 import pytest
 from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from app.config.settings import settings
@@ -51,6 +51,36 @@ class MockArqPool:
         pass
 
 
+class MockStorageService:
+    """Mock for MinIO storage service."""
+    def __init__(self):
+        self._store = {}
+        self.deleted_prefixes = []
+
+    def upload_file(self, file_bytes: bytes, object_name: str, content_type: str = "application/octet-stream") -> str:
+        self._store[object_name] = file_bytes
+        return object_name
+
+    def delete_file(self, object_name: str) -> bool:
+        if object_name in self._store:
+            del self._store[object_name]
+            return True
+        return False
+
+    def delete_files_by_prefix(self, prefix: str) -> int:
+        self.deleted_prefixes.append(prefix)
+        keys_to_delete = [k for k in self._store if k.startswith(prefix)]
+        for k in keys_to_delete:
+            del self._store[k]
+        return len(keys_to_delete)
+
+    def get_file_url(self, object_name: str, expires_seconds: int = 3600) -> str:
+        return f"http://mock-minio/{object_name}"
+
+    def file_exists(self, object_name: str) -> bool:
+        return object_name in self._store
+
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for each test case."""
@@ -72,14 +102,22 @@ def mock_arq_pool():
 
 
 @pytest.fixture
-async def app_client(mock_redis, mock_arq_pool) -> AsyncGenerator[AsyncClient, None]:
-    """Provides an async HTTP client configured with mocked Redis and ARQ state."""
-    app = create_app()
-    app.state.redis = mock_redis
-    app.state.arq_pool = mock_arq_pool
+def mock_storage():
+    """Provides a MockStorageService instance."""
+    return MockStorageService()
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://testserver",
-    ) as client:
-        yield client
+
+@pytest.fixture
+async def app_client(mock_redis, mock_arq_pool, mock_storage) -> AsyncGenerator[AsyncClient, None]:
+    """Provides an async HTTP client configured with mocked Redis, ARQ, and Storage state."""
+    with patch("app.services.storage.storage_service", mock_storage):
+        with patch("app.services.deletion.storage_service", mock_storage):
+            app = create_app()
+            app.state.redis = mock_redis
+            app.state.arq_pool = mock_arq_pool
+
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://testserver",
+            ) as client:
+                yield client

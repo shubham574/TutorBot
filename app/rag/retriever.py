@@ -9,6 +9,12 @@ from app.config.logging_config import logger
 from app.models.content import ContentChunk
 from app.services.llm.embeddings import embedding_service, cosine_similarity
 from app.services.llm.nvidia import llm_client
+from app.security.injection import (
+    injection_detector,
+    sanitize_content,
+    format_context_for_prompt,
+    wrap_retrieved_content,
+)
 
 
 class AnswerMode(str, enum.Enum):
@@ -26,6 +32,7 @@ class RetrievedChunk(BaseModel):
     subject: str
     score: float
     doc_type: str
+    injection_risk: float = 0.0  # Risk score for prompt injection
 
 
 class RetrievalResult(BaseModel):
@@ -33,6 +40,7 @@ class RetrievalResult(BaseModel):
     confidence: float
     rewritten_query: str
     chunks: List[RetrievedChunk]
+    injection_warnings: List[str] = []  # Warnings about detected injection attempts
 
 
 class HybridRetriever:
@@ -153,18 +161,33 @@ class HybridRetriever:
         else:
             mode = AnswerMode.DECLINE_OR_CLARIFY
 
-        retrieved_chunks = [
-            RetrievedChunk(
-                chunk_id=c.id,
-                content=c.content,
-                source_title=c.source_title,
-                page_number=c.page_number,
-                subject=c.subject,
-                score=round(score, 4),
-                doc_type=c.doc_type,
+        # 5. Process chunks with injection detection and sanitization
+        retrieved_chunks = []
+        injection_warnings = []
+
+        for c, score in top_matches:
+            # Check for injection patterns
+            risk_score = injection_detector.get_risk_score(c.content)
+            matches = injection_detector.scan(c.content)
+
+            if matches:
+                for pattern, matched_text in matches:
+                    warning = f"Potential injection in {c.source_title} (p.{c.page_number}): '{matched_text[:50]}...' (pattern: {pattern})"
+                    injection_warnings.append(warning)
+                    logger.warning("Prompt injection detected in retrieved chunk", chunk_id=str(c.id), pattern=pattern)
+
+            retrieved_chunks.append(
+                RetrievedChunk(
+                    chunk_id=c.id,
+                    content=c.content,  # Original content preserved for reference
+                    source_title=c.source_title,
+                    page_number=c.page_number,
+                    subject=c.subject,
+                    score=round(score, 4),
+                    doc_type=c.doc_type,
+                    injection_risk=risk_score,
+                )
             )
-            for c, score in top_matches
-        ]
 
         logger.info(
             "Hybrid retrieval completed",
@@ -172,6 +195,7 @@ class HybridRetriever:
             mode=mode.value,
             confidence=round(confidence, 3),
             chunks_found=len(retrieved_chunks),
+            injection_warnings=len(injection_warnings),
         )
 
         return RetrievalResult(
@@ -179,7 +203,23 @@ class HybridRetriever:
             confidence=round(confidence, 3),
             rewritten_query=rewritten,
             chunks=retrieved_chunks,
+            injection_warnings=injection_warnings,
         )
+
+    def format_context_for_llm(self, retrieval_result: RetrievalResult) -> str:
+        """
+        Formats retrieved chunks into a safe context string for LLM consumption.
+        Wraps content in delimiters with explicit safety instructions.
+        """
+        chunks_data = [
+            {
+                "content": chunk.content,
+                "source_title": chunk.source_title,
+                "page_number": chunk.page_number,
+            }
+            for chunk in retrieval_result.chunks
+        ]
+        return format_context_for_prompt(chunks_data)
 
 
 retriever = HybridRetriever()
